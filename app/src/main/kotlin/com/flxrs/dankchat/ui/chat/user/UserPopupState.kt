@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.flxrs.dankchat.data.DisplayName
 import com.flxrs.dankchat.data.UserId
 import com.flxrs.dankchat.data.UserName
+import com.flxrs.dankchat.ui.chat.paint.PaintUi
 
 @Immutable
 sealed interface UserPopupState {
@@ -30,5 +31,7 @@ sealed interface UserPopupState {
         val showFollowingSince: Boolean = false,
         val followingSince: String? = null,
         val isBlocked: Boolean = false,
+        val paint: PaintUi? = null,
+        val userColor: Int? = null,
     ) : UserPopupState
 }

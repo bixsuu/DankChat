@@ -7,10 +7,14 @@ import com.flxrs.dankchat.data.UserName
 import com.flxrs.dankchat.data.repo.HighlightsRepository
 import com.flxrs.dankchat.data.repo.IgnoresRepository
 import com.flxrs.dankchat.data.repo.channel.ChannelRepository
+import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.repo.chat.UserStateRepository
+import com.flxrs.dankchat.data.repo.chat.UsersRepository
 import com.flxrs.dankchat.data.repo.data.DataRepository
 import com.flxrs.dankchat.data.twitch.badge.Badge
 import com.flxrs.dankchat.preferences.DankChatPreferenceStore
+import com.flxrs.dankchat.preferences.chat.ChatSettingsDataStore
+import com.flxrs.dankchat.ui.chat.paint.toPaintUi
 import com.flxrs.dankchat.utils.DateTimeUtils.asParsedZonedDateTime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +40,9 @@ class UserPopupViewModel(
     private val ignoresRepository: IgnoresRepository,
     private val userStateRepository: UserStateRepository,
     private val preferenceStore: DankChatPreferenceStore,
+    private val sevenTVPaintsRepository: SevenTVPaintsRepository,
+    private val chatSettingsDataStore: ChatSettingsDataStore,
+    private val usersRepository: UsersRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow<UserPopupUiState?>(null)
     val state: StateFlow<UserPopupUiState?> = _state.asStateFlow()
@@ -109,13 +116,23 @@ class UserPopupViewModel(
         val initialState = when (cachedUser) {
             null -> UserPopupState.Loading(params.targetUserName, params.targetDisplayName)
 
-            else -> UserPopupState.Success(
-                userId = cachedUser.id,
-                userName = cachedUser.name,
-                displayName = cachedUser.displayName,
-                avatarUrl = cachedUser.avatarUrl,
-                created = cachedUser.createdAt.asParsedZonedDateTime(),
-            )
+            else -> {
+                val paint = if (chatSettingsDataStore.current().showSevenTvPaints) {
+                    sevenTVPaintsRepository.getPaintForUser(cachedUser.id)?.toPaintUi()
+                } else {
+                    null
+                }
+                val userColor = usersRepository.getCachedUserColor(cachedUser.name) ?: usersRepository.getCachedUserColor(params.targetUserName)
+                UserPopupState.Success(
+                    userId = cachedUser.id,
+                    userName = cachedUser.name,
+                    displayName = cachedUser.displayName,
+                    avatarUrl = cachedUser.avatarUrl,
+                    created = cachedUser.createdAt.asParsedZonedDateTime(),
+                    paint = paint,
+                    userColor = userColor,
+                )
+            }
         }
         emitState(params, initialState)
 
@@ -141,6 +158,13 @@ class UserPopupViewModel(
 
                     user ?: return@runCatching UserPopupState.Error()
 
+                    val paint = if (chatSettingsDataStore.current().showSevenTvPaints && resolvedUserId.value.isNotEmpty()) {
+                        sevenTVPaintsRepository.getPaintForUser(resolvedUserId)?.toPaintUi()
+                    } else {
+                        null
+                    }
+                    val userColor = usersRepository.getCachedUserColor(user.name) ?: usersRepository.getCachedUserColor(params.targetUserName)
+
                     UserPopupState.Success(
                         userId = user.id,
                         userName = user.name,
@@ -154,6 +178,8 @@ class UserPopupViewModel(
                             ?.followedAt
                             ?.asParsedZonedDateTime(),
                         isBlocked = isBlocked,
+                        paint = paint,
+                        userColor = userColor,
                     )
                 }
 

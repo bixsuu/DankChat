@@ -9,6 +9,7 @@ import com.flxrs.dankchat.data.twitch.badge.Badge
 import com.flxrs.dankchat.data.twitch.emote.ChatMessageEmote
 import com.flxrs.dankchat.data.twitch.message.Message
 import com.flxrs.dankchat.ui.chat.messages.common.LinkUi
+import com.flxrs.dankchat.ui.chat.paint.PaintUi
 import com.flxrs.dankchat.utils.TextResource
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -56,6 +57,7 @@ sealed interface ChatMessageUiState {
         val highlightHeaderImageUrl: String? = null,
         val highlightHeaderCost: Int? = null,
         val highlightHeaderCostSuffix: String? = null,
+        val paint: PaintUi? = null,
         val fullMessage: String, // For copying
     ) : ChatMessageUiState
 
@@ -155,6 +157,7 @@ sealed interface ChatMessageUiState {
         override val showDividerBelow: Boolean = false,
         val nameText: String?,
         val rawNameColor: Int,
+        val paint: PaintUi? = null,
         val title: String,
         val cost: Int,
         val rewardImageUrl: String,
@@ -225,6 +228,8 @@ sealed interface ChatMessageUiState {
         val badges: ImmutableList<BadgeUi>,
         val rawSenderColor: Int,
         val rawRecipientColor: Int,
+        val senderPaint: PaintUi? = null,
+        val recipientPaint: PaintUi? = null,
         val senderName: String,
         val recipientName: String,
         val message: String,
@@ -262,4 +267,5 @@ data class ThreadUi(
     val userName: String,
     val message: String,
     val rawNameColor: Int = Message.DEFAULT_COLOR,
+    val paint: PaintUi? = null,
 )

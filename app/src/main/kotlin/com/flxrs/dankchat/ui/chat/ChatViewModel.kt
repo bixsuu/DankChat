@@ -10,6 +10,7 @@ import com.flxrs.dankchat.data.api.helix.HelixApiException
 import com.flxrs.dankchat.data.auth.AuthDataStore
 import com.flxrs.dankchat.data.chat.ChatItem
 import com.flxrs.dankchat.data.repo.chat.ChatMessageRepository
+import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.twitch.message.SystemMessageType
 import com.flxrs.dankchat.di.DispatchersProvider
 import com.flxrs.dankchat.preferences.DankChatPreferenceStore
@@ -53,6 +54,7 @@ class ChatViewModel(
     private val preferenceStore: DankChatPreferenceStore,
     private val appearanceSettingsDataStore: AppearanceSettingsDataStore,
     chatSettingsDataStore: ChatSettingsDataStore,
+    sevenTVPaintsRepository: SevenTVPaintsRepository,
     dispatchersProvider: DispatchersProvider,
 ) : ViewModel() {
     val chatDisplaySettings: StateFlow<ChatDisplaySettings> =
@@ -76,6 +78,7 @@ class ChatViewModel(
     private val mappingCache = LruCache<String, ChatMessageUiState>(MAPPING_CACHE_MIN_SIZE)
     private val checkeredTracker = CheckeredMessageTracker()
     private var lastChatSettings: ChatSettings? = null
+    private var lastPaintsVersion = -1L
 
     private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault())
 
@@ -84,15 +87,17 @@ class ChatViewModel(
             chat,
             appearanceSettingsDataStore.currentSettings,
             chatSettingsDataStore.currentSettings,
-        ) { messages, appearanceSettings, chatSettings ->
-            // Mapped results only depend on chat settings; appearance settings are either part
+            sevenTVPaintsRepository.paintsVersion,
+        ) { messages, appearanceSettings, chatSettings, paintsVersion ->
+            // Mapped results depend on chat settings and paints; appearance settings are either part
             // of the cache key (checkered background) or applied after mapping
-            if (chatSettings != lastChatSettings) {
+            if (chatSettings != lastChatSettings || paintsVersion != lastPaintsVersion) {
                 mappingCache.evictAll()
                 // The cache must fit the whole scrollback, an LruCache smaller than the
                 // sequentially scanned message list degrades to a 100% miss rate
                 mappingCache.resize(maxOf(chatSettings.scrollbackLength + MAPPING_CACHE_MARGIN, MAPPING_CACHE_MIN_SIZE))
                 lastChatSettings = chatSettings
+                lastPaintsVersion = paintsVersion
             }
 
             val zone = ZoneId.systemDefault()

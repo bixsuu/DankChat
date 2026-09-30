@@ -165,6 +165,7 @@ private fun ChatSettingsScreen(
                 enabled = VisibleThirdPartyEmotes.SevenTV in settings.visibleEmotes,
                 allowUnlistedSevenTvEmotes = settings.allowUnlistedSevenTvEmotes,
                 sevenTVLiveEmoteUpdates = settings.sevenTVLiveEmoteUpdates,
+                showSevenTvPaints = settings.showSevenTvPaints,
                 onInteraction = onInteraction,
                 onNavToBattery = onNavToBattery,
             )
@@ -363,6 +364,7 @@ private fun SevenTVCategory(
     enabled: Boolean,
     allowUnlistedSevenTvEmotes: Boolean,
     sevenTVLiveEmoteUpdates: Boolean,
+    showSevenTvPaints: Boolean,
     onInteraction: (ChatSettingsInteraction) -> Unit,
     onNavToBattery: () -> Unit,
 ) {
@@ -379,6 +381,13 @@ private fun SevenTVCategory(
             title = stringResource(R.string.preference_7tv_live_updates_title),
             isChecked = sevenTVLiveEmoteUpdates,
             onClick = { onInteraction(ChatSettingsInteraction.LiveEmoteUpdates(it)) },
+        )
+        SwitchPreferenceItem(
+            isEnabled = enabled,
+            title = stringResource(R.string.preference_7tv_paints_title),
+            summary = stringResource(R.string.preference_7tv_paints_summary),
+            isChecked = showSevenTvPaints,
+            onClick = { onInteraction(ChatSettingsInteraction.SevenTvPaints(it)) },
         )
         PreferenceItem(
             title = stringResource(R.string.preference_battery_pause_7tv_title),

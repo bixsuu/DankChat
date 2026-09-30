@@ -51,9 +51,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -329,10 +331,27 @@ private fun UserInfoSection(
 
         Spacer(modifier = Modifier.width(16.dp))
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+            val paint = (state as? UserPopupState.Success)?.paint
+            val userColor = (state as? UserPopupState.Success)?.userColor?.let(::Color)
+            val baseTitleStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            val formattedName = userName.formatWithDisplayName(displayName)
+            val textMeasurer = rememberTextMeasurer()
+            val titleBounds = remember(formattedName, baseTitleStyle) {
+                val measured = textMeasurer.measure(formattedName, baseTitleStyle)
+                Rect(0f, 0f, measured.size.width.toFloat(), measured.size.height.toFloat())
+            }
+            val brush = paint?.toBrush(titleBounds)
+            val titleStyle = when {
+                brush != null -> baseTitleStyle.copy(brush = brush, shadow = paint.shadow)
+
+                else -> baseTitleStyle.copy(
+                    color = userColor ?: Color.Unspecified,
+                    shadow = paint?.shadow,
+                )
+            }
             Text(
-                text = userName.formatWithDisplayName(displayName),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
+                text = formattedName,
+                style = titleStyle,
                 textAlign = TextAlign.Center,
             )
             val isSuccess = state is UserPopupState.Success

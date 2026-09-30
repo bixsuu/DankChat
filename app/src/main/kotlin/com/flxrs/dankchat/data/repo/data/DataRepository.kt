@@ -16,6 +16,7 @@ import com.flxrs.dankchat.data.api.seventv.eventapi.SevenTVEventMessage
 import com.flxrs.dankchat.data.api.upload.UploadClient
 import com.flxrs.dankchat.data.auth.AuthDataStore
 import com.flxrs.dankchat.data.repo.RecentUploadsRepository
+import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.repo.emote.EmoteRepository
 import com.flxrs.dankchat.data.repo.emote.Emotes
 import com.flxrs.dankchat.data.twitch.badge.toBadgeSets
@@ -55,6 +56,7 @@ class DataRepository(
     private val recentUploadsRepository: RecentUploadsRepository,
     private val authDataStore: AuthDataStore,
     private val chatSettingsDataStore: ChatSettingsDataStore,
+    private val sevenTVPaintsRepository: SevenTVPaintsRepository,
     private val dispatchersProvider: DispatchersProvider,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatchersProvider.default)
@@ -324,6 +326,8 @@ class DataRepository(
             ).map { }
         }
     }
+
+    suspend fun loadSevenTVPaints(): Result<Unit> = sevenTVPaintsRepository.loadPaints()
 
     private suspend fun <T : Any> collectCachedEmotes(
         flow: Flow<CachedResult<T?>>,

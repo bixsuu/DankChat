@@ -22,6 +22,7 @@ class GlobalDataLoader(
                 async { loadGlobalBTTVEmotes() },
                 async { loadGlobalFFZEmotes() },
                 async { loadGlobalSevenTVEmotes() },
+                async { loadSevenTVPaints() },
             )
         // Best-effort load, must not delay the global loading state
         commandRepository.loadSupibotCommands()
@@ -43,6 +44,8 @@ class GlobalDataLoader(
     suspend fun loadGlobalFFZEmotes(forceNetwork: Boolean = false): Result<Unit> = dataRepository.loadGlobalFFZEmotes(forceNetwork)
 
     suspend fun loadGlobalSevenTVEmotes(forceNetwork: Boolean = false): Result<Unit> = dataRepository.loadGlobalSevenTVEmotes(forceNetwork)
+
+    suspend fun loadSevenTVPaints(): Result<Unit> = dataRepository.loadSevenTVPaints()
 
     suspend fun loadUserEmotes(
         userId: UserId,

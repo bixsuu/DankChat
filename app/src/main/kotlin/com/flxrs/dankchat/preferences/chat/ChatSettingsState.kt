@@ -72,6 +72,10 @@ sealed interface ChatSettingsInteraction {
         val value: Boolean,
     ) : ChatSettingsInteraction
 
+    data class SevenTvPaints(
+        val value: Boolean,
+    ) : ChatSettingsInteraction
+
     data class MessageHistory(
         val value: Boolean,
     ) : ChatSettingsInteraction
@@ -111,6 +115,7 @@ data class ChatSettingsState(
     val visibleEmotes: ImmutableList<VisibleThirdPartyEmotes>,
     val allowUnlistedSevenTvEmotes: Boolean,
     val sevenTVLiveEmoteUpdates: Boolean,
+    val showSevenTvPaints: Boolean,
     val loadMessageHistory: Boolean,
     val loadMessageHistoryAfterReconnect: Boolean,
     val messageHistoryDashboardUrl: String,

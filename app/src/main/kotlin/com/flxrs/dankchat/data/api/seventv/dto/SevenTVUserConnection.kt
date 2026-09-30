@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SevenTVUserConnection(
     val platform: String,
+    val id: String? = null,
 ) {
     companion object {
         const val twitch = "TWITCH"

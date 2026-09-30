@@ -25,6 +25,7 @@ import com.flxrs.dankchat.data.api.seventv.dto.SevenTVUserConnection
 import com.flxrs.dankchat.data.api.seventv.dto.SevenTVUserDto
 import com.flxrs.dankchat.data.api.seventv.eventapi.SevenTVEventMessage
 import com.flxrs.dankchat.data.repo.channel.ChannelRepository
+import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.toUserId
 import com.flxrs.dankchat.data.twitch.badge.Badge
 import com.flxrs.dankchat.data.twitch.badge.BadgeSet
@@ -65,6 +66,7 @@ class EmoteRepository(
     private val helixApiClient: HelixApiClient,
     private val chatSettingsDataStore: ChatSettingsDataStore,
     private val channelRepository: ChannelRepository,
+    private val sevenTVPaintsRepository: SevenTVPaintsRepository,
     private val dispatchersProvider: DispatchersProvider,
 ) {
     private val ffzModBadges = ConcurrentHashMap<UserName, String>()
@@ -640,6 +642,13 @@ class EmoteRepository(
 
         channelEmoteStates[channel]?.update {
             it.copy(sevenTvEmotes = sevenTvEmotes)
+        }
+
+        val paintId = userDto.user.style?.paintId
+        val twitchConnection = userDto.user.connections.find { it.platform == SevenTVUserConnection.twitch }
+        val twitchUserId = (twitchConnection?.id ?: userDto.id).takeIf { it.isNotEmpty() }?.let(::UserId)
+        if (twitchUserId != null) {
+            sevenTVPaintsRepository.seedUserPaint(twitchUserId, paintId)
         }
     }
 

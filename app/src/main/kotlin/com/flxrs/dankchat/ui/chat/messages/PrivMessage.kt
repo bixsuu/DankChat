@@ -26,9 +26,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -50,6 +52,8 @@ import com.flxrs.dankchat.ui.chat.messages.common.rememberAdaptiveTextColor
 import com.flxrs.dankchat.ui.chat.messages.common.rememberBackgroundColor
 import com.flxrs.dankchat.ui.chat.messages.common.rememberNormalizedColor
 import com.flxrs.dankchat.ui.chat.messages.common.timestampSpanStyle
+import com.flxrs.dankchat.ui.chat.paint.measureUsernameBounds
+import com.flxrs.dankchat.ui.chat.paint.paintSpanStyle
 import com.flxrs.dankchat.utils.resolve
 
 /**
@@ -156,6 +160,21 @@ fun PrivMessageComposable(
             ) {
                 val replyColor = rememberAdaptiveTextColor(backgroundColor).copy(alpha = 0.6f)
                 val replyNameColor = rememberNormalizedColor(message.thread.rawNameColor, backgroundColor)
+                val density = LocalDensity.current
+                val textMeasurer = rememberTextMeasurer()
+                val replyBounds = remember(message.thread.userName, fontSize, density) {
+                    if (message.thread.paint?.brush != null) {
+                        measureUsernameBounds(
+                            textMeasurer = textMeasurer,
+                            density = density,
+                            fontSize = fontSize * 0.9f,
+                            username = "@${message.thread.userName}: ",
+                            channelPrefix = "Reply to ",
+                        )
+                    } else {
+                        null
+                    }
+                }
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Reply,
                     contentDescription = null,
@@ -167,7 +186,7 @@ fun PrivMessageComposable(
                         withStyle(SpanStyle(color = replyColor)) {
                             append("Reply to ")
                         }
-                        withStyle(SpanStyle(color = replyNameColor)) {
+                        withStyle(paintSpanStyle(paint = message.thread.paint, baseColor = replyNameColor, fontWeight = FontWeight.Normal, bounds = replyBounds)) {
                             append("@${message.thread.userName}: ")
                         }
                         withStyle(SpanStyle(color = replyColor)) {
@@ -212,6 +231,8 @@ private fun PrivMessageText(
     maxLines: Int,
 ) {
     val context = LocalPlatformContext.current
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
     val defaultTextColor = rememberAdaptiveTextColor(backgroundColor)
     val nameColor = rememberNormalizedColor(message.rawNameColor, backgroundColor)
     val linkColor = rememberAdaptiveLinkColor(backgroundColor)
@@ -227,11 +248,13 @@ private fun PrivMessageText(
             message.message,
             message.emotes,
             message.isAction,
+            message.paint,
             defaultTextColor,
             nameColor,
             showChannelPrefix,
             linkColor,
             fontSize,
+            density,
         ) {
             buildAnnotatedString {
                 // Channel prefix (for mention tab)
@@ -262,10 +285,24 @@ private fun PrivMessageText(
 
                 // Username with click annotation (only if nameText is not empty)
                 if (message.nameText.isNotEmpty()) {
+                    val usernameBounds = if (message.paint?.brush != null) {
+                        measureUsernameBounds(
+                            textMeasurer = textMeasurer,
+                            density = density,
+                            fontSize = fontSize,
+                            username = message.nameText,
+                            timestamp = message.timestamp,
+                            badgeCount = message.badges.size,
+                            channelPrefix = if (showChannelPrefix) "#${message.channel.value}" else "",
+                        )
+                    } else {
+                        null
+                    }
                     withStyle(
-                        SpanStyle(
-                            fontWeight = FontWeight.Bold,
-                            color = nameColor,
+                        paintSpanStyle(
+                            paint = message.paint,
+                            baseColor = nameColor,
+                            bounds = usernameBounds,
                         ),
                     ) {
                         pushStringAnnotation(

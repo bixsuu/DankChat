@@ -682,6 +682,8 @@
     <string name="preference_helix_sending_summary">Send chat messages via Twitch Helix API instead of IRC</string>
     <string name="preference_7tv_live_updates_key" translatable="false">7tv_live_updates_key</string>
     <string name="preference_7tv_live_updates_title">7TV live emote updates</string>
+    <string name="preference_7tv_paints_title">7TV name paints</string>
+    <string name="preference_7tv_paints_summary">Display custom colors and gradient paints on usernames</string>
     <string name="preference_7tv_category_title" translatable="false">7TV</string>
     <string name="preference_streams_header">Livestreams</string>
     <string name="preference_retain_webview_new_key" translatable="false">retain_webview_new_key</string>

@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -55,6 +56,8 @@ import com.flxrs.dankchat.ui.chat.messages.common.rememberBackgroundColor
 import com.flxrs.dankchat.ui.chat.messages.common.rememberNormalizedColor
 import com.flxrs.dankchat.ui.chat.messages.common.spacerWidthDp
 import com.flxrs.dankchat.ui.chat.messages.common.timestampSpanStyle
+import com.flxrs.dankchat.ui.chat.paint.measureUsernameBounds
+import com.flxrs.dankchat.ui.chat.paint.paintSpanStyle
 
 /**
  * Renders a whisper message (private message between users)
@@ -122,6 +125,8 @@ private fun WhisperMessageText(
     onEmoteClick: (emotes: List<EmoteSheetData>) -> Unit,
 ) {
     val context = LocalPlatformContext.current
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
     val defaultTextColor = rememberAdaptiveTextColor(backgroundColor)
     val senderColor = rememberNormalizedColor(message.rawSenderColor, backgroundColor)
     val recipientColor = rememberNormalizedColor(message.rawRecipientColor, backgroundColor)
@@ -129,7 +134,7 @@ private fun WhisperMessageText(
 
     // Build annotated string with text content
     val annotatedString =
-        remember(message, defaultTextColor, senderColor, recipientColor, linkColor) {
+        remember(message, defaultTextColor, senderColor, recipientColor, linkColor, density, fontSize) {
             buildAnnotatedString {
                 // Timestamp
                 if (message.timestamp.isNotEmpty()) {
@@ -146,10 +151,23 @@ private fun WhisperMessageText(
                 }
 
                 // Sender username with click annotation
+                val senderBounds = if (message.senderPaint?.brush != null) {
+                    measureUsernameBounds(
+                        textMeasurer = textMeasurer,
+                        density = density,
+                        fontSize = fontSize,
+                        username = message.senderName,
+                        timestamp = message.timestamp,
+                        badgeCount = message.badges.size,
+                    )
+                } else {
+                    null
+                }
                 withStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.Bold,
-                        color = senderColor,
+                    paintSpanStyle(
+                        paint = message.senderPaint,
+                        baseColor = senderColor,
+                        bounds = senderBounds,
                     ),
                 ) {
                     pushStringAnnotation(
@@ -164,10 +182,37 @@ private fun WhisperMessageText(
                 }
 
                 // Recipient
+                val recipientBounds = if (message.recipientPaint?.brush != null) {
+                    val senderRight = senderBounds?.right ?: run {
+                        measureUsernameBounds(
+                            textMeasurer = textMeasurer,
+                            density = density,
+                            fontSize = fontSize,
+                            username = message.senderName,
+                            timestamp = message.timestamp,
+                            badgeCount = message.badges.size,
+                        ).right
+                    }
+                    val arrowWidth = textMeasurer.measure(" -> ", TextStyle(fontSize = fontSize.sp)).size.width
+                    val recipientMeasured = textMeasurer.measure(
+                        text = message.recipientName,
+                        style = TextStyle(fontSize = fontSize.sp, fontWeight = FontWeight.Bold),
+                    )
+                    val startX = senderRight + arrowWidth
+                    Rect(
+                        left = startX,
+                        top = 0f,
+                        right = startX + recipientMeasured.size.width.toFloat(),
+                        bottom = recipientMeasured.size.height.toFloat(),
+                    )
+                } else {
+                    null
+                }
                 withStyle(
-                    SpanStyle(
-                        fontWeight = FontWeight.Bold,
-                        color = recipientColor,
+                    paintSpanStyle(
+                        paint = message.recipientPaint,
+                        baseColor = recipientColor,
+                        bounds = recipientBounds,
                     ),
                 ) {
                     pushStringAnnotation(
@@ -285,7 +330,7 @@ fun PointRedemptionMessageComposable(
         val costTextStyle = TextStyle(fontSize = fontSize.sp, color = textColor)
 
         val annotatedString =
-            remember(message, textColor, nameColor, fontSize) {
+            remember(message, textColor, nameColor, fontSize, density) {
                 buildAnnotatedString {
                     // Timestamp
                     if (message.timestamp.isNotEmpty()) {
@@ -301,7 +346,24 @@ fun PointRedemptionMessageComposable(
                         }
 
                         message.nameText != null -> {
-                            withStyle(SpanStyle(color = nameColor ?: textColor)) {
+                            val redemptionBounds = if (message.paint?.brush != null) {
+                                measureUsernameBounds(
+                                    textMeasurer = textMeasurer,
+                                    density = density,
+                                    fontSize = fontSize,
+                                    username = message.nameText,
+                                    timestamp = message.timestamp,
+                                )
+                            } else {
+                                null
+                            }
+                            withStyle(
+                                paintSpanStyle(
+                                    paint = message.paint,
+                                    baseColor = nameColor ?: textColor,
+                                    bounds = redemptionBounds,
+                                ),
+                            ) {
                                 append(message.nameText)
                             }
                             append(" redeemed ")

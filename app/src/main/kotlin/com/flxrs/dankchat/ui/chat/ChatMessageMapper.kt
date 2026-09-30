@@ -6,6 +6,7 @@ import com.flxrs.dankchat.data.UserId
 import com.flxrs.dankchat.data.UserName
 import com.flxrs.dankchat.data.chat.ChatImportance
 import com.flxrs.dankchat.data.chat.ChatItem
+import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.repo.chat.UsersRepository
 import com.flxrs.dankchat.data.toUserId
 import com.flxrs.dankchat.data.toUserName
@@ -35,6 +36,7 @@ import com.flxrs.dankchat.data.twitch.message.senderAliasOrFormattedName
 import com.flxrs.dankchat.preferences.DankChatPreferenceStore
 import com.flxrs.dankchat.preferences.chat.ChatSettings
 import com.flxrs.dankchat.ui.chat.messages.common.findLinks
+import com.flxrs.dankchat.ui.chat.paint.toPaintUi
 import com.flxrs.dankchat.utils.DateTimeUtils
 import com.flxrs.dankchat.utils.TextResource
 import com.flxrs.dankchat.utils.extensions.parseColorOrNull
@@ -49,6 +51,7 @@ import org.koin.core.annotation.Single
 @Single
 class ChatMessageMapper(
     private val usersRepository: UsersRepository,
+    private val sevenTVPaintsRepository: SevenTVPaintsRepository,
 ) {
     fun mapToUiState(
         item: ChatItem,
@@ -604,11 +607,17 @@ class ChatMessageMapper(
 
         val threadUi =
             if (thread != null && !isInReplies) {
+                val threadPaint = if (chatSettings.showSevenTvPaints) {
+                    tags["reply-parent-user-id"]?.toUserId()?.let { sevenTVPaintsRepository.getPaintForUser(it)?.toPaintUi() }
+                } else {
+                    null
+                }
                 ThreadUi(
                     rootId = thread.rootId,
                     userName = thread.name.value,
                     message = thread.message,
                     rawNameColor = usersRepository.getCachedUserColor(thread.name) ?: Message.DEFAULT_COLOR,
+                    paint = threadPaint,
                 )
             } else {
                 null
@@ -656,6 +665,12 @@ class ChatMessageMapper(
 
         val rawNameColor = resolveNameColor(userDisplay?.color, color, userId, chatSettings)
 
+        val paint = if (chatSettings.showSevenTvPaints && userId != null) {
+            sevenTVPaintsRepository.getPaintForUser(userId)?.toPaintUi()
+        } else {
+            null
+        }
+
         return ChatMessageUiState.PrivMessageUi(
             id = id,
             tag = tag,
@@ -684,6 +699,7 @@ class ChatMessageMapper(
                 isGigantifiedEmote || isAnimatedMessage -> "Bits"
                 else -> null
             },
+            paint = paint,
             fullMessage = fullMessage,
         )
     }
@@ -703,6 +719,11 @@ class ChatMessageMapper(
 
         val nameText = if (!requiresUserInput) aliasOrFormattedName else null
         val nameColor = usersRepository.getCachedUserColor(name) ?: Message.DEFAULT_COLOR
+        val paint = if (chatSettings.showSevenTvPaints && userId != null) {
+            sevenTVPaintsRepository.getPaintForUser(userId)?.toPaintUi()
+        } else {
+            null
+        }
 
         return ChatMessageUiState.PointRedemptionMessageUi(
             id = id,
@@ -713,6 +734,7 @@ class ChatMessageMapper(
             textAlpha = textAlpha,
             nameText = nameText,
             rawNameColor = nameColor,
+            paint = paint,
             title = title,
             cost = cost,
             rewardImageUrl = rewardImageUrl,
@@ -802,6 +824,17 @@ class ChatMessageMapper(
         val rawSenderColor = resolveNameColor(userDisplay?.color, color, userId, chatSettings)
         val rawRecipientColor = resolveNameColor(recipientDisplay?.color, recipientColor, recipientId, chatSettings)
 
+        val senderPaint = if (chatSettings.showSevenTvPaints && userId != null) {
+            sevenTVPaintsRepository.getPaintForUser(userId)?.toPaintUi()
+        } else {
+            null
+        }
+        val recipientPaint = if (chatSettings.showSevenTvPaints && recipientId != null) {
+            sevenTVPaintsRepository.getPaintForUser(recipientId)?.toPaintUi()
+        } else {
+            null
+        }
+
         return ChatMessageUiState.WhisperMessageUi(
             id = id,
             tag = tag,
@@ -820,6 +853,8 @@ class ChatMessageMapper(
             badges = badgeUis,
             rawSenderColor = rawSenderColor,
             rawRecipientColor = rawRecipientColor,
+            senderPaint = senderPaint,
+            recipientPaint = recipientPaint,
             senderName = senderAliasOrFormattedName,
             recipientName = recipientAliasOrFormattedName,
             message = message,
