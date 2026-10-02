@@ -168,6 +168,7 @@ private fun WhisperMessageText(
                         paint = message.senderPaint,
                         baseColor = senderColor,
                         bounds = senderBounds,
+                        density = density,
                     ),
                 ) {
                     pushStringAnnotation(
@@ -213,6 +214,7 @@ private fun WhisperMessageText(
                         paint = message.recipientPaint,
                         baseColor = recipientColor,
                         bounds = recipientBounds,
+                        density = density,
                     ),
                 ) {
                     pushStringAnnotation(
@@ -362,6 +364,7 @@ fun PointRedemptionMessageComposable(
                                     paint = message.paint,
                                     baseColor = nameColor ?: textColor,
                                     bounds = redemptionBounds,
+                                    density = density,
                                 ),
                             ) {
                                 append(message.nameText)

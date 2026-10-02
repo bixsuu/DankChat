@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isGrowX
 import com.flxrs.dankchat.ui.chat.BadgeUi
 import com.flxrs.dankchat.ui.chat.EmoteUi
 import com.flxrs.dankchat.ui.chat.emote.EmoteSheetData
@@ -75,7 +76,7 @@ fun MessageTextWithInlineContent(
 
                 emotes.forEach { emote ->
                     put("EMOTE_${emote.position}") {
-                        key(emote.position, emote.urls) {
+                        key(emote.position, emote.urls, emote.modifierFlags) {
                             StackedEmote(
                                 emote = emote,
                                 fontSize = fontSize,
@@ -105,13 +106,14 @@ fun MessageTextWithInlineContent(
                 emotes.forEach { emote ->
                     val id = "EMOTE_${emote.position}"
                     val dims = emoteCoordinator.getDimensions(emote.dimensionKey(baseHeightPx))
+                    val widthMultiplier = if (emote.modifierFlags.isGrowX) 2 else 1
                     when {
-                        dims != null -> put(id, EmoteDimensions(id, dims.first, dims.second))
+                        dims != null -> put(id, EmoteDimensions(id, dims.first * widthMultiplier, dims.second))
 
                         else -> {
                             hasEstimates = true
                             val estimate = baseHeightPx * (emote.emotes.firstOrNull()?.scale ?: 1)
-                            put(id, EmoteDimensions(id, estimate, estimate))
+                            put(id, EmoteDimensions(id, estimate * widthMultiplier, estimate))
                         }
                     }
                 }
@@ -138,7 +140,7 @@ fun MessageTextWithInlineContent(
         style = TextStyle(fontSize = fontSize.sp),
         knownDimensions = knownDimensions,
         maxLines = maxLines,
-        overflow = overflow,
+        overflow = if (maxLines == Int.MAX_VALUE) TextOverflow.Visible else overflow,
         modifier = modifier.fillMaxWidth(),
         interactionSource = interactionSource,
         onTextClick = onTextClick,

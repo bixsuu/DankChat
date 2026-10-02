@@ -40,7 +40,26 @@ class EmoteDrawablePainter(
         // Read invalidateTick so animation frames invalidate this draw scope
         invalidateTick
         drawIntoCanvas { canvas ->
-            drawable.draw(canvas.nativeCanvas)
+            val bounds = drawable.bounds
+            val bWidth = if (bounds.width() > 0) bounds.width().toFloat() else drawable.intrinsicWidth.toFloat()
+            val bHeight = if (bounds.height() > 0) bounds.height().toFloat() else drawable.intrinsicHeight.toFloat()
+            val scaleX = if (bWidth > 0f) size.width / bWidth else 1f
+            val scaleY = if (bHeight > 0f) size.height / bHeight else 1f
+
+            if (scaleX != 1f || scaleY != 1f || bounds.left != 0 || bounds.top != 0) {
+                canvas.save()
+                canvas.scale(scaleX, scaleY)
+                if (bounds.left != 0 || bounds.top != 0) {
+                    canvas.translate(-bounds.left.toFloat(), -bounds.top.toFloat())
+                }
+                try {
+                    drawable.draw(canvas.nativeCanvas)
+                } finally {
+                    canvas.restore()
+                }
+            } else {
+                drawable.draw(canvas.nativeCanvas)
+            }
         }
     }
 

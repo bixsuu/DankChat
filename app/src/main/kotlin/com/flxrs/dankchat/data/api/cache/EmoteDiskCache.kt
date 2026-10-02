@@ -15,7 +15,11 @@ class EmoteDiskCache(
     private val dispatchersProvider: DispatchersProvider,
 ) {
     private val cacheDir = File(context.filesDir, "emote_cache").also { it.mkdirs() }
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
     suspend fun <T> read(
         key: String,

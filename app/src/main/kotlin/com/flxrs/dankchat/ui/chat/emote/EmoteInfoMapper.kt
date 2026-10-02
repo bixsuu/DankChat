@@ -40,7 +40,7 @@ fun EmoteSheetData.toBasicEmoteInfoItem(): EmoteInfoItem = EmoteInfoItem(
 
         else -> "$TWITCH_BASE_LINK$id"
     },
-    isZeroWidth = false,
+    isZeroWidth = isOverlayEmote,
     emoteType = when (type) {
         is ChatMessageEmoteType.ChannelBTTVEmote -> when {
             type.isShared -> R.string.emote_sheet_bttv_shared_emote

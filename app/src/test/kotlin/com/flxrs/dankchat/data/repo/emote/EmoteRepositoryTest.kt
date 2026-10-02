@@ -15,9 +15,19 @@ import com.flxrs.dankchat.data.twitch.message.Message
 import com.flxrs.dankchat.data.twitch.message.PrivMessage
 import com.flxrs.dankchat.di.DispatchersProvider
 import com.flxrs.dankchat.preferences.chat.ChatSettingsDataStore
+import com.flxrs.dankchat.data.api.ffz.dto.FFZEmoteDto
+import com.flxrs.dankchat.data.api.ffz.dto.FFZEmoteSetDto
+import com.flxrs.dankchat.data.api.ffz.dto.FFZGlobalDto
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.hasAnimatedEffects
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isAppear
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isGrowX
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isLeave
+import io.mockk.every
 import io.mockk.impl.annotations.InjectMockKs
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -302,6 +312,210 @@ internal class EmoteRepositoryTest {
 
         assertEquals(expected = expectedMessage, actual = resultMessage)
         assertEquals(expected = expectedEmotes, actual = resultEmotes)
+    }
+
+    @Test
+    fun `adjustOverlayEmotes moves FFZ overlay modifier to preceding emote`() {
+        val message = "Kappa StabZ"
+        val emotes =
+            listOf(
+                ChatMessageEmote(position = 0..5, url = "url_kappa", id = "25", code = "Kappa", scale = 1, type = ChatMessageEmoteType.TwitchEmote),
+                ChatMessageEmote(position = 6..11, url = "url_stabz", id = "100", code = "StabZ", scale = 1, type = ChatMessageEmoteType.GlobalFFZEmote(creator = null), isOverlayEmote = true, modifierFlags = 0),
+            )
+        val (resultMessage, resultEmotes) = emoteRepository.adjustOverlayEmotes(message, emotes)
+
+        assertEquals(expected = "Kappa ", actual = resultMessage)
+        assertEquals(expected = 0..5, actual = resultEmotes[0].position)
+        assertEquals(expected = 0..5, actual = resultEmotes[1].position)
+    }
+
+    @Test
+    fun `adjustOverlayEmotes moves FFZ effect modifier to preceding emote`() {
+        val message = "Kappa ffzX"
+        val emotes =
+            listOf(
+                ChatMessageEmote(position = 0..5, url = "url_kappa", id = "25", code = "Kappa", scale = 1, type = ChatMessageEmoteType.TwitchEmote),
+                ChatMessageEmote(
+                    position = 6..10,
+                    url = "url_ffzx",
+                    id = "101",
+                    code = "ffzX",
+                    scale = 1,
+                    type = ChatMessageEmoteType.GlobalFFZEmote(creator = null),
+                    isOverlayEmote = true,
+                    modifierFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.FLIP_X,
+                ),
+            )
+        val (resultMessage, resultEmotes) = emoteRepository.adjustOverlayEmotes(message, emotes)
+
+        assertEquals(expected = "Kappa ", actual = resultMessage)
+        assertEquals(expected = 0..5, actual = resultEmotes[0].position)
+        assertEquals(expected = 0..5, actual = resultEmotes[1].position)
+        assertEquals(expected = FFZModifierFlags.HIDDEN or FFZModifierFlags.FLIP_X, actual = resultEmotes[1].modifierFlags)
+    }
+
+    @Test
+    fun `adjustOverlayEmotes chains multiple FFZ modifiers to preceding emote`() {
+        val message = "Kappa StabZ ffzX"
+        val emotes =
+            listOf(
+                ChatMessageEmote(position = 0..5, url = "url_kappa", id = "25", code = "Kappa", scale = 1, type = ChatMessageEmoteType.TwitchEmote),
+                ChatMessageEmote(position = 6..11, url = "url_stabz", id = "100", code = "StabZ", scale = 1, type = ChatMessageEmoteType.GlobalFFZEmote(creator = null), isOverlayEmote = true),
+                ChatMessageEmote(
+                    position = 12..16,
+                    url = "url_ffzx",
+                    id = "101",
+                    code = "ffzX",
+                    scale = 1,
+                    type = ChatMessageEmoteType.GlobalFFZEmote(creator = null),
+                    isOverlayEmote = true,
+                    modifierFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.FLIP_X,
+                ),
+            )
+        val (resultMessage, resultEmotes) = emoteRepository.adjustOverlayEmotes(message, emotes)
+
+        assertEquals(expected = "Kappa ", actual = resultMessage)
+        assertEquals(expected = 0..5, actual = resultEmotes[0].position)
+        assertEquals(expected = 0..5, actual = resultEmotes[1].position)
+        assertEquals(expected = 0..5, actual = resultEmotes[2].position)
+    }
+
+    @Test
+    fun `setFFZGlobalEmotes parses regular, overlay modifier, and Subwoofer effect modifier emotes`() = runBlocking {
+        every { dispatchersProvider.default } returns Dispatchers.Unconfined
+
+        val defaultSetId = "3"
+        val subwooferSetId = "1532818"
+        val ffzGlobalDto =
+            FFZGlobalDto(
+                defaultSets = listOf(kotlinx.serialization.json.JsonPrimitive(defaultSetId)),
+                sets =
+                    mapOf(
+                        defaultSetId to
+                            FFZEmoteSetDto(
+                                emotes =
+                                    listOf(
+                                        FFZEmoteDto(
+                                            id = 1,
+                                            name = "CatBag",
+                                            urls = mapOf("1" to "https://cdn.ffz.com/1"),
+                                            animated = null,
+                                            owner = null,
+                                            isModifier = false,
+                                            modifierFlags = 0,
+                                        ),
+                                        FFZEmoteDto(
+                                            id = 2,
+                                            name = "StabZ",
+                                            urls = mapOf("1" to "https://cdn.ffz.com/2"),
+                                            animated = null,
+                                            owner = null,
+                                            isModifier = true,
+                                            modifierFlags = 0,
+                                        ),
+                                    ),
+                            ),
+                        subwooferSetId to
+                            FFZEmoteSetDto(
+                                emotes =
+                                    listOf(
+                                        FFZEmoteDto(
+                                            id = 3,
+                                            name = "ffzHyper",
+                                            urls = mapOf("1" to "https://cdn.ffz.com/3"),
+                                            animated = null,
+                                            owner = null,
+                                            isModifier = true,
+                                            modifierFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.HYPER_RED,
+                                        ),
+                                        FFZEmoteDto(
+                                            id = 4,
+                                            name = "NonModifierSubwooferEmote",
+                                            urls = mapOf("1" to "https://cdn.ffz.com/4"),
+                                            animated = null,
+                                            owner = null,
+                                            isModifier = false,
+                                            modifierFlags = 0,
+                                        ),
+                                    ),
+                            ),
+                    ),
+            )
+
+        emoteRepository.setFFZGlobalEmotes(ffzGlobalDto)
+
+        val parsed =
+            emoteRepository.parse3rdPartyEmotes(
+                message = "CatBag StabZ ffzHyper NonModifierSubwooferEmote",
+                channel = "test".toUserName(),
+            )
+        assertEquals(3, parsed.size)
+
+        val catBag = parsed.first { it.code == "CatBag" }
+        assertEquals(false, catBag.isOverlayEmote)
+        assertEquals(0, catBag.modifierFlags)
+
+        val stabZ = parsed.first { it.code == "StabZ" }
+        assertEquals(true, stabZ.isOverlayEmote)
+        assertEquals(0, stabZ.modifierFlags)
+
+        val ffzHyper = parsed.first { it.code == "ffzHyper" }
+        assertEquals(true, ffzHyper.isOverlayEmote)
+        assertEquals(FFZModifierFlags.HIDDEN or FFZModifierFlags.HYPER_RED, ffzHyper.modifierFlags)
+    }
+
+    @Test
+    fun `parseEmotesAndBadges on Twitch emote with ffzX modifier`() = runBlocking {
+        every { dispatchersProvider.default } returns Dispatchers.Unconfined
+        val defaultSetId = "3"
+        val dto =
+            FFZGlobalDto(
+                defaultSets = listOf(kotlinx.serialization.json.JsonPrimitive(defaultSetId)),
+                sets =
+                    mapOf(
+                        defaultSetId to
+                            FFZEmoteSetDto(
+                                emotes =
+                                    listOf(
+                                        FFZEmoteDto(
+                                            id = 720508,
+                                            name = "ffzX",
+                                            urls = mapOf("1" to "https://cdn.ffz.com/720508/1"),
+                                            animated = null,
+                                            owner = null,
+                                            isModifier = true,
+                                            modifierFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.FLIP_X,
+                                        ),
+                                    ),
+                            ),
+                    ),
+            )
+        emoteRepository.setFFZGlobalEmotes(dto)
+
+        // Raw Twitch message for "Kappa ffzX" where Kappa is Twitch emote 25 at 0-4
+        val raw = "@badges=;color=#F1C40F;display-name=test;emotes=25:0-4;id=1;room-id=1;tmi-sent-ts=1;user-id=1 :test!test@test.tmi.twitch.tv PRIVMSG #test :Kappa ffzX"
+        val message = assertIs<PrivMessage>(Message.parse(IrcMessage.parse(raw)) { null })
+        val parsed = assertIs<PrivMessage>(emoteRepository.parseEmotesAndBadges(message))
+
+        assertEquals(2, parsed.emotes.size)
+        assertEquals(parsed.emotes[0].position, parsed.emotes[1].position)
+        assertEquals(FFZModifierFlags.HIDDEN or FFZModifierFlags.FLIP_X, parsed.emotes[1].modifierFlags)
+    }
+
+    @Test
+    fun `FFZ modifier flags identify arrive, leave, and wide`() {
+        val arriveFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.APPEAR
+        val leaveFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.LEAVE
+        val wideFlags = FFZModifierFlags.HIDDEN or FFZModifierFlags.GROW_X
+
+        assertEquals(true, arriveFlags.isAppear)
+        assertEquals(true, arriveFlags.hasAnimatedEffects)
+
+        assertEquals(true, leaveFlags.isLeave)
+        assertEquals(true, leaveFlags.hasAnimatedEffects)
+
+        assertEquals(true, wideFlags.isGrowX)
+        assertEquals(false, wideFlags.hasAnimatedEffects)
     }
 
     // --- badge parsing tests ---

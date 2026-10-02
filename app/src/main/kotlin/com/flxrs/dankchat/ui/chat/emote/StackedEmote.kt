@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -28,6 +29,7 @@ import coil3.imageLoader
 import coil3.request.ImageRequest
 import coil3.size.Size
 import com.flxrs.dankchat.data.twitch.emote.ChatMessageEmote
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isGrowX
 import com.flxrs.dankchat.ui.chat.EmoteUi
 import com.flxrs.dankchat.utils.extensions.forEachLayer
 import com.flxrs.dankchat.utils.extensions.setRunning
@@ -78,6 +80,7 @@ fun StackedEmote(
             emoteCoordinator = emoteCoordinator,
             animateGifs = animateGifs,
             alpha = alpha,
+            modifierFlags = emote.modifierFlags,
             modifier = modifier,
             onClick = onClick,
         )
@@ -85,11 +88,12 @@ fun StackedEmote(
     }
 
     val cacheKey = emote.stackedCacheKey(baseHeightPx)
+    val widthMultiplier = if (emote.modifierFlags.isGrowX) 2 else 1
 
     // Estimate placeholder size from dimension cache or from base height
     val cachedDims = emoteCoordinator.getDimensions(cacheKey)
     val estimatedHeightPx = cachedDims?.second ?: (baseHeightPx * (emote.emotes.firstOrNull()?.scale ?: 1))
-    val estimatedWidthPx = cachedDims?.first ?: estimatedHeightPx
+    val estimatedWidthPx = (cachedDims?.first ?: estimatedHeightPx) * widthMultiplier
 
     // Load or create LayerDrawable asynchronously, cache hits resolve synchronously so the
     // first frame already renders the emote. The state is keyed by cacheKey so a composition
@@ -175,9 +179,7 @@ fun StackedEmote(
         is EmoteLoadState.Loaded -> {
             // Render with actual dimensions
             val widthDp = with(density) {
-                state.drawable.bounds
-                    .width()
-                    .toDp()
+                (state.drawable.bounds.width() * widthMultiplier).toDp()
             }
             val heightDp = with(density) {
                 state.drawable.bounds
@@ -185,14 +187,26 @@ fun StackedEmote(
                     .toDp()
             }
             val painter = remember(state.drawable, isPageVisible) { EmoteDrawablePainter(state.drawable, emoteCoordinator, invalidationsEnabled = isPageVisible) }
+            val colorFilter = rememberEmoteColorFilter(
+                modifierFlags = emote.modifierFlags,
+                animateGifs = animateGifs,
+                isPageVisible = isPageVisible,
+            )
 
             Image(
                 painter = painter,
                 contentDescription = null,
                 alpha = alpha,
+                colorFilter = colorFilter,
+                contentScale = if (emote.modifierFlags.isGrowX) ContentScale.FillBounds else ContentScale.Fit,
                 modifier =
                     modifier
                         .size(width = widthDp, height = heightDp)
+                        .applyEmoteModifierTransforms(
+                            modifierFlags = emote.modifierFlags,
+                            animateGifs = animateGifs,
+                            isPageVisible = isPageVisible,
+                        )
                         .clickable { onClick() },
             )
         }
@@ -233,12 +247,14 @@ private fun SingleEmoteDrawable(
     animateGifs: Boolean,
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
+    modifierFlags: Int = chatEmote.modifierFlags,
     onClick: () -> Unit = {},
 ) {
     val context = LocalPlatformContext.current
     val density = LocalDensity.current
     val baseHeightPx = with(density) { emoteBaseHeight(fontSize).toPx().toInt() }
     val cacheKey = singleEmoteCacheKey(url, baseHeightPx)
+    val widthMultiplier = if (modifierFlags.isGrowX) 2 else 1
 
     // Use dimension cache for instant placeholder sizing on repeat views
     val cachedDims = emoteCoordinator.getDimensions(cacheKey)
@@ -309,9 +325,7 @@ private fun SingleEmoteDrawable(
         is EmoteLoadState.Loaded -> {
             // Render with actual dimensions
             val widthDp = with(density) {
-                state.drawable.bounds
-                    .width()
-                    .toDp()
+                (state.drawable.bounds.width() * widthMultiplier).toDp()
             }
             val heightDp = with(density) {
                 state.drawable.bounds
@@ -319,14 +333,26 @@ private fun SingleEmoteDrawable(
                     .toDp()
             }
             val painter = remember(state.drawable, isPageVisible) { EmoteDrawablePainter(state.drawable, emoteCoordinator, invalidationsEnabled = isPageVisible) }
+            val colorFilter = rememberEmoteColorFilter(
+                modifierFlags = modifierFlags,
+                animateGifs = animateGifs,
+                isPageVisible = isPageVisible,
+            )
 
             Image(
                 painter = painter,
                 contentDescription = null,
                 alpha = alpha,
+                colorFilter = colorFilter,
+                contentScale = if (modifierFlags.isGrowX) ContentScale.FillBounds else ContentScale.Fit,
                 modifier =
                     modifier
                         .size(width = widthDp, height = heightDp)
+                        .applyEmoteModifierTransforms(
+                            modifierFlags = modifierFlags,
+                            animateGifs = animateGifs,
+                            isPageVisible = isPageVisible,
+                        )
                         .clickable { onClick() },
             )
         }
@@ -347,7 +373,7 @@ private fun SingleEmoteDrawable(
             // Placeholder keeps the inline slot measurable while loading — emitting nothing
             // would drop the emote from the inline content list and shift sibling slots
             val estimatedSizePx = baseHeightPx * chatEmote.scale
-            val widthDp = with(density) { (cachedDims?.first ?: estimatedSizePx).toDp() }
+            val widthDp = with(density) { ((cachedDims?.first ?: estimatedSizePx) * widthMultiplier).toDp() }
             val heightDp = with(density) { (cachedDims?.second ?: estimatedSizePx).toDp() }
             Box(
                 modifier =

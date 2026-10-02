@@ -162,13 +162,14 @@ fun PrivMessageComposable(
                 val replyNameColor = rememberNormalizedColor(message.thread.rawNameColor, backgroundColor)
                 val density = LocalDensity.current
                 val textMeasurer = rememberTextMeasurer()
-                val replyBounds = remember(message.thread.userName, fontSize, density) {
+                val threadName = "@${message.thread.userName}"
+                val replyBounds = remember(threadName, fontSize, density) {
                     if (message.thread.paint?.brush != null) {
                         measureUsernameBounds(
                             textMeasurer = textMeasurer,
                             density = density,
                             fontSize = fontSize * 0.9f,
-                            username = "@${message.thread.userName}: ",
+                            username = threadName,
                             channelPrefix = "Reply to ",
                         )
                     } else {
@@ -186,10 +187,19 @@ fun PrivMessageComposable(
                         withStyle(SpanStyle(color = replyColor)) {
                             append("Reply to ")
                         }
-                        withStyle(paintSpanStyle(paint = message.thread.paint, baseColor = replyNameColor, fontWeight = FontWeight.Normal, bounds = replyBounds)) {
-                            append("@${message.thread.userName}: ")
+                        withStyle(
+                            paintSpanStyle(
+                                paint = message.thread.paint,
+                                baseColor = replyNameColor,
+                                fontWeight = FontWeight.Normal,
+                                bounds = replyBounds,
+                                density = density,
+                            ),
+                        ) {
+                            append(threadName)
                         }
                         withStyle(SpanStyle(color = replyColor)) {
+                            append(": ")
                             append(message.thread.message)
                         }
                     },
@@ -285,12 +295,18 @@ private fun PrivMessageText(
 
                 // Username with click annotation (only if nameText is not empty)
                 if (message.nameText.isNotEmpty()) {
+                    val (namePart, suffixPart) = when {
+                        message.nameText.endsWith(": ") -> message.nameText.dropLast(2) to ": "
+                        message.nameText.endsWith(" ") -> message.nameText.dropLast(1) to " "
+                        else -> message.nameText to ""
+                    }
+
                     val usernameBounds = if (message.paint?.brush != null) {
                         measureUsernameBounds(
                             textMeasurer = textMeasurer,
                             density = density,
                             fontSize = fontSize,
-                            username = message.nameText,
+                            username = namePart,
                             timestamp = message.timestamp,
                             badgeCount = message.badges.size,
                             channelPrefix = if (showChannelPrefix) "#${message.channel.value}" else "",
@@ -303,14 +319,26 @@ private fun PrivMessageText(
                             paint = message.paint,
                             baseColor = nameColor,
                             bounds = usernameBounds,
+                            density = density,
                         ),
                     ) {
                         pushStringAnnotation(
                             tag = "USER",
                             annotation = "${message.userId?.value.orEmpty()}|${message.userName.value}|${message.displayName.value}|${message.channel.value}",
                         )
-                        append(message.nameText)
+                        append(namePart)
                         pop()
+                    }
+
+                    if (suffixPart.isNotEmpty()) {
+                        val suffixColor = when {
+                            message.isAction -> nameColor
+                            message.paint != null -> defaultTextColor
+                            else -> nameColor
+                        }
+                        withStyle(SpanStyle(color = suffixColor)) {
+                            append(suffixPart)
+                        }
                     }
                 }
 

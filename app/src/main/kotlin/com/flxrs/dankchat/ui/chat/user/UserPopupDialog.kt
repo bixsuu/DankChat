@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -340,13 +341,15 @@ private fun UserInfoSection(
                 val measured = textMeasurer.measure(formattedName, baseTitleStyle)
                 Rect(0f, 0f, measured.size.width.toFloat(), measured.size.height.toFloat())
             }
+            val density = LocalDensity.current
             val brush = paint?.toBrush(titleBounds)
+            val shadow = paint?.toShadow(density) ?: paint?.shadow
             val titleStyle = when {
-                brush != null -> baseTitleStyle.copy(brush = brush, shadow = paint.shadow)
+                brush != null -> baseTitleStyle.copy(brush = brush, shadow = shadow)
 
                 else -> baseTitleStyle.copy(
                     color = userColor ?: Color.Unspecified,
-                    shadow = paint?.shadow,
+                    shadow = shadow,
                 )
             }
             Text(

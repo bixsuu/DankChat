@@ -61,14 +61,14 @@ class CachedEmoteProvider(
         channelId: UserId,
         forceNetwork: Boolean = false,
     ): Flow<CachedResult<FFZChannelDto?>> = cachedThenFetch(
-        cacheKey = "ffz_channel_${channelId.value}",
+        cacheKey = "ffz_channel_v2_${channelId.value}",
         serializer = FFZChannelDto.serializer(),
         forceNetwork = forceNetwork,
         fetch = { ffzApiClient.getFFZChannelEmotes(channelId) },
     )
 
     fun getFFZGlobalEmotes(forceNetwork: Boolean = false): Flow<CachedResult<FFZGlobalDto?>> = cachedThenFetch(
-        cacheKey = "ffz_global",
+        cacheKey = "ffz_global_v2",
         serializer = FFZGlobalDto.serializer(),
         forceNetwork = forceNetwork,
         fetch = { ffzApiClient.getFFZGlobalEmotes().map { it } },

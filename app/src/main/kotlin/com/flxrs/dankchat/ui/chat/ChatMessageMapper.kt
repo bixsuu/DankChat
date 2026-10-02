@@ -10,7 +10,11 @@ import com.flxrs.dankchat.data.repo.chat.SevenTVPaintsRepository
 import com.flxrs.dankchat.data.repo.chat.UsersRepository
 import com.flxrs.dankchat.data.toUserId
 import com.flxrs.dankchat.data.toUserName
+import com.flxrs.dankchat.data.twitch.emote.ChatMessageEmote
 import com.flxrs.dankchat.data.twitch.emote.ChatMessageEmoteType
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.hasAnimatedEffects
+import com.flxrs.dankchat.data.twitch.emote.FFZModifierFlags.isHiddenEffect
+import kotlinx.collections.immutable.ImmutableList
 import com.flxrs.dankchat.data.twitch.message.AnnouncementColor
 import com.flxrs.dankchat.data.twitch.message.AutomodMessage
 import com.flxrs.dankchat.data.twitch.message.Highlight
@@ -565,45 +569,7 @@ class ChatMessageMapper(
                     )
                 }.toImmutableList()
 
-        val emoteUis =
-            emotes
-                .groupBy { it.position }
-                .map { (position, emoteGroup) ->
-                    // Check if any emote in the group is animated - we need to check the type
-                    val hasAnimated =
-                        emoteGroup.any { emote ->
-                            when (emote.type) {
-                                is ChatMessageEmoteType.TwitchEmote -> false
-
-                                // Twitch emotes can be animated but we don't have that info here
-                                is ChatMessageEmoteType.ChannelFFZEmote,
-                                is ChatMessageEmoteType.GlobalFFZEmote,
-                                is ChatMessageEmoteType.ChannelBTTVEmote,
-                                is ChatMessageEmoteType.GlobalBTTVEmote,
-                                -> true
-
-                                // Assume third-party can be animated
-                                is ChatMessageEmoteType.ChannelSevenTVEmote,
-                                is ChatMessageEmoteType.GlobalSevenTVEmote,
-                                -> true
-
-                                is ChatMessageEmoteType.Cheermote -> true
-                            }
-                        }
-
-                    val firstEmote = emoteGroup.first()
-                    EmoteUi(
-                        code = firstEmote.code,
-                        urls = emoteGroup.map { it.url }.toImmutableList(),
-                        position = position,
-                        isAnimated = hasAnimated,
-                        isTwitch = emoteGroup.any { it.isTwitch },
-                        scale = firstEmote.scale,
-                        emotes = emoteGroup.toImmutableList(),
-                        cheerAmount = firstEmote.cheerAmount,
-                        cheerColor = firstEmote.cheerColor?.let { Color(it) },
-                    )
-                }.toImmutableList()
+        val emoteUis = emotes.toEmoteUis()
 
         val threadUi =
             if (thread != null && !isInReplies) {
@@ -774,43 +740,7 @@ class ChatMessageMapper(
                     )
                 }.toImmutableList()
 
-        val emoteUis =
-            emotes
-                .groupBy { it.position }
-                .map { (position, emoteGroup) ->
-                    // Check if any emote in the group is animated
-                    val hasAnimated =
-                        emoteGroup.any { emote ->
-                            when (emote.type) {
-                                is ChatMessageEmoteType.TwitchEmote -> false
-
-                                is ChatMessageEmoteType.ChannelFFZEmote,
-                                is ChatMessageEmoteType.GlobalFFZEmote,
-                                is ChatMessageEmoteType.ChannelBTTVEmote,
-                                is ChatMessageEmoteType.GlobalBTTVEmote,
-                                -> true
-
-                                is ChatMessageEmoteType.ChannelSevenTVEmote,
-                                is ChatMessageEmoteType.GlobalSevenTVEmote,
-                                -> true
-
-                                is ChatMessageEmoteType.Cheermote -> true
-                            }
-                        }
-
-                    val firstEmote = emoteGroup.first()
-                    EmoteUi(
-                        code = firstEmote.code,
-                        urls = emoteGroup.map { it.url }.toImmutableList(),
-                        position = position,
-                        isAnimated = hasAnimated,
-                        isTwitch = emoteGroup.any { it.isTwitch },
-                        scale = firstEmote.scale,
-                        emotes = emoteGroup.toImmutableList(),
-                        cheerAmount = firstEmote.cheerAmount,
-                        cheerColor = firstEmote.cheerColor?.let { Color(it) },
-                    )
-                }.toImmutableList()
+        val emoteUis = emotes.toEmoteUis()
 
         val fullMessage =
             buildString {
@@ -1124,6 +1054,7 @@ private fun ChatMessageUiState.withLayout(
     showDividerBelow: Boolean,
 ): ChatMessageUiState = when (this) {
     is ChatMessageUiState.PrivMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
+    is ChatMessageUiState.WhisperMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
     is ChatMessageUiState.SystemMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
     is ChatMessageUiState.NoticeMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
     is ChatMessageUiState.UserNoticeMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
@@ -1131,5 +1062,49 @@ private fun ChatMessageUiState.withLayout(
     is ChatMessageUiState.PointRedemptionMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
     is ChatMessageUiState.DateSeparatorUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
     is ChatMessageUiState.AutomodMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
-    is ChatMessageUiState.WhisperMessageUi -> copy(roundedTopCorners = roundedTopCorners, roundedBottomCorners = roundedBottomCorners, showDividerBelow = showDividerBelow)
 }
+
+private fun List<ChatMessageEmote>.toEmoteUis(): ImmutableList<EmoteUi> =
+    groupBy { it.position }
+        .map { (position, emoteGroup) ->
+            val combinedModifierFlags = emoteGroup.fold(0) { acc, emote -> acc or emote.modifierFlags }
+            val hasAnimated =
+                combinedModifierFlags.hasAnimatedEffects ||
+                    emoteGroup.any { emote ->
+                        when (emote.type) {
+                            is ChatMessageEmoteType.TwitchEmote -> false
+                            is ChatMessageEmoteType.ChannelFFZEmote,
+                            is ChatMessageEmoteType.GlobalFFZEmote,
+                            is ChatMessageEmoteType.ChannelBTTVEmote,
+                            is ChatMessageEmoteType.GlobalBTTVEmote,
+                            is ChatMessageEmoteType.ChannelSevenTVEmote,
+                            is ChatMessageEmoteType.GlobalSevenTVEmote,
+                            is ChatMessageEmoteType.Cheermote,
+                            -> true
+                        }
+                    }
+
+            val firstEmote = emoteGroup.first()
+            val visibleEmotes = emoteGroup.filter {
+                !it.isOverlayEmote || !it.modifierFlags.isHiddenEffect
+            }
+            val urls = if (visibleEmotes.isNotEmpty()) {
+                visibleEmotes.map { it.url }.toImmutableList()
+            } else {
+                persistentListOf(firstEmote.url)
+            }
+
+            EmoteUi(
+                code = firstEmote.code,
+                urls = urls,
+                position = position,
+                isAnimated = hasAnimated,
+                isTwitch = emoteGroup.any { it.isTwitch },
+                scale = firstEmote.scale,
+                emotes = emoteGroup.toImmutableList(),
+                cheerAmount = firstEmote.cheerAmount,
+                cheerColor = firstEmote.cheerColor?.let { Color(it) },
+                modifierFlags = combinedModifierFlags,
+            )
+        }.toImmutableList()
+

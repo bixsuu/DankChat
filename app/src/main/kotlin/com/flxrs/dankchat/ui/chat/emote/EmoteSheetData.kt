@@ -10,8 +10,9 @@ data class EmoteSheetData(
     val code: String,
     val url: String,
     val type: ChatMessageEmoteType,
+    val isOverlayEmote: Boolean = false,
 )
 
-fun ChatMessageEmote.toEmoteSheetData(): EmoteSheetData = EmoteSheetData(id = id, code = code, url = url, type = type)
+fun ChatMessageEmote.toEmoteSheetData(): EmoteSheetData = EmoteSheetData(id = id, code = code, url = url, type = type, isOverlayEmote = isOverlayEmote)
 
-fun GenericEmote.toEmoteSheetData(): EmoteSheetData = EmoteSheetData(id = id, code = code, url = url, type = emoteType.toChatMessageEmoteType())
+fun GenericEmote.toEmoteSheetData(): EmoteSheetData = EmoteSheetData(id = id, code = code, url = url, type = emoteType.toChatMessageEmoteType(), isOverlayEmote = isOverlayEmote)

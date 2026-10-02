@@ -147,6 +147,7 @@ class EmoteRepository(
                             scale = emote.scale,
                             type = emote.emoteType.toChatMessageEmoteType(),
                             isOverlayEmote = emote.isOverlayEmote,
+                            modifierFlags = emote.modifierFlags,
                         )
                 }
             }
@@ -593,12 +594,17 @@ class EmoteRepository(
     }
 
     suspend fun setFFZGlobalEmotes(ffzResult: FFZGlobalDto) = withContext(dispatchersProvider.default) {
+        val defaultSetIds = ffzResult.defaultSetIds
         val ffzGlobalEmotes =
             ffzResult.sets
-                .filter { it.key in ffzResult.defaultSets }
-                .flatMap { (_, emoteSet) ->
+                .flatMap { (setId, emoteSet) ->
+                    val isDefaultSet = setId in defaultSetIds
                     emoteSet.emotes.mapNotNull { emote ->
-                        parseFFZEmote(emote, channel = null)
+                        if (isDefaultSet || emote.isModifier) {
+                            parseFFZEmote(emote, channel = null)
+                        } else {
+                            null
+                        }
                     }
                 }
         globalEmoteState.update { it.copy(ffzEmotes = ffzGlobalEmotes) }
@@ -807,6 +813,7 @@ class EmoteRepository(
                             scale = emote.scale,
                             type = emote.emoteType.toChatMessageEmoteType(),
                             isOverlayEmote = emote.isOverlayEmote,
+                            modifierFlags = emote.modifierFlags,
                         )
                 }
             }
@@ -1013,7 +1020,16 @@ class EmoteRepository(
                 null -> EmoteType.GlobalFFZEmote(emote.owner?.displayName)
                 else -> EmoteType.ChannelFFZEmote(emote.owner?.displayName)
             }
-        return GenericEmote(name, url.withLeadingHttps, lowResUrl.withLeadingHttps, "$id", scale, type)
+        return GenericEmote(
+            code = name,
+            url = url.withLeadingHttps,
+            lowResUrl = lowResUrl.withLeadingHttps,
+            id = "$id",
+            scale = scale,
+            emoteType = type,
+            isOverlayEmote = emote.isModifier,
+            modifierFlags = emote.modifierFlags,
+        )
     }
 
     private fun parseSevenTVEmote(

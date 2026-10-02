@@ -259,6 +259,7 @@ data class EmoteUi(
     val emotes: ImmutableList<ChatMessageEmote>, // For click handling
     val cheerAmount: Int? = null,
     val cheerColor: Color? = null,
+    val modifierFlags: Int = 0,
 )
 
 @Immutable

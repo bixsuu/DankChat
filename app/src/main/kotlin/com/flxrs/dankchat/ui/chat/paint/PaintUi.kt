@@ -39,25 +39,32 @@ data class PaintUi(
     val brush: Brush? = null,
     val shadow: Shadow? = null,
     val layer: SevenTVPaintLayer? = null,
+    val shadows: List<SevenTVPaintShadow> = emptyList(),
 ) {
     fun toBrush(bounds: Rect? = null): Brush? {
         if (bounds == null) return brush
         val l = layer ?: return brush
         return layerToBrush(l, bounds)
     }
+
+    fun toShadow(density: Density? = null): Shadow? {
+        if (shadows.isNotEmpty()) {
+            return shadowsToUi(shadows, density)
+        }
+        return shadow
+    }
 }
 
 fun SevenTVPaint.toPaintUi(): PaintUi {
     val primaryLayer = layers.firstOrNull()
     val brush = primaryLayer?.let { layerToBrush(it) }
-
-    val primaryShadow = shadows.firstOrNull()
-    val shadow = primaryShadow?.let { shadowToUi(it) }
+    val shadow = shadowsToUi(shadows)
 
     return PaintUi(
         brush = brush,
         shadow = shadow,
         layer = primaryLayer,
+        shadows = shadows,
     )
 }
 
@@ -157,12 +164,29 @@ internal fun layerToBrush(
     }
 }
 
-private fun shadowToUi(shadow: SevenTVPaintShadow): Shadow? {
-    val color = parseCssHexColor(shadow.colorHex) ?: return null
+fun shadowsToUi(
+    shadows: List<SevenTVPaintShadow>,
+    density: Density? = null,
+): Shadow? {
+    if (shadows.isEmpty()) return null
+    // Pick the most prominent shadow (largest blur radius for outer glow aura)
+    val bestShadow = shadows.maxByOrNull { it.blur } ?: return null
+    val color = parseCssHexColor(bestShadow.colorHex) ?: return null
+
+    val densityFactor = density?.density ?: 2.75f
+    // Scale blur from CSS px to device pixels with glow expansion factor (matching 7TV / desktop clients)
+    val scaledBlur = if (bestShadow.blur > 0f) {
+        (bestShadow.blur * densityFactor * 2.5f).coerceAtLeast(bestShadow.blur * 2f)
+    } else {
+        0f
+    }
+    val offsetX = bestShadow.offsetX * densityFactor
+    val offsetY = bestShadow.offsetY * densityFactor
+
     return Shadow(
         color = color,
-        offset = Offset(shadow.offsetX, shadow.offsetY),
-        blurRadius = shadow.blur.coerceAtLeast(0f),
+        offset = Offset(offsetX, offsetY),
+        blurRadius = scaledBlur,
     )
 }
 
@@ -337,9 +361,10 @@ fun paintSpanStyle(
     baseColor: Color,
     fontWeight: FontWeight = FontWeight.Bold,
     bounds: Rect? = null,
+    density: Density? = null,
 ): SpanStyle {
     val brush = paint?.toBrush(bounds)
-    val shadow = paint?.shadow
+    val shadow = paint?.toShadow(density) ?: paint?.shadow
     return if (brush != null) {
         SpanStyle(
             fontWeight = fontWeight,

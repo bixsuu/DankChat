@@ -248,4 +248,82 @@ internal class PaintUiTest {
         assertNotNull(linearBrush)
         assertEquals(bounds, linearBrush.bounds)
     }
+
+    @Test
+    fun `shadowsToUi scales blur and offset with density`() {
+        val shadow = com.flxrs.dankchat.data.twitch.paint.SevenTVPaintShadow(
+            colorHex = "#BBFF00FF",
+            offsetX = 1f,
+            offsetY = 2f,
+            blur = 4f,
+        )
+        val density = androidx.compose.ui.unit.Density(density = 3f)
+        val uiShadow = shadowsToUi(listOf(shadow), density)
+
+        assertNotNull(uiShadow)
+        assertEquals(Offset(3f, 6f), uiShadow.offset)
+        // blur = 4f * 3f * 2.5f = 30f
+        assertEquals(30f, uiShadow.blurRadius)
+        val parsedColor = parseCssHexColor("#BBFF00FF")
+        assertEquals(parsedColor, uiShadow.color)
+    }
+
+    @Test
+    fun `shadowsToUi selects shadow with largest blur for glow aura`() {
+        val edgeShadow = com.flxrs.dankchat.data.twitch.paint.SevenTVPaintShadow(
+            colorHex = "#FE7694FF",
+            offsetX = 0f,
+            offsetY = 0f,
+            blur = 0.1f,
+        )
+        val glowShadow = com.flxrs.dankchat.data.twitch.paint.SevenTVPaintShadow(
+            colorHex = "#FF4D73FF",
+            offsetX = 0f,
+            offsetY = 0f,
+            blur = 4f,
+        )
+        val density = androidx.compose.ui.unit.Density(density = 2f)
+        val uiShadow = shadowsToUi(listOf(edgeShadow, glowShadow), density)
+
+        assertNotNull(uiShadow)
+        // blur = 4f * 2f * 2.5f = 20f
+        assertEquals(20f, uiShadow.blurRadius)
+        assertEquals(parseCssHexColor("#FF4D73FF"), uiShadow.color)
+    }
+
+    @Test
+    fun `PaintUi toShadow re-scales dynamically with density`() {
+        val shadow = com.flxrs.dankchat.data.twitch.paint.SevenTVPaintShadow(
+            colorHex = "#00FF00FF",
+            offsetX = 0f,
+            offsetY = 0f,
+            blur = 4f,
+        )
+        val paint = PaintUi(shadows = listOf(shadow))
+
+        val shadow2x = paint.toShadow(androidx.compose.ui.unit.Density(2f))
+        val shadow3x = paint.toShadow(androidx.compose.ui.unit.Density(3f))
+
+        assertNotNull(shadow2x)
+        assertNotNull(shadow3x)
+        assertEquals(20f, shadow2x.blurRadius)
+        assertEquals(30f, shadow3x.blurRadius)
+    }
+
+    @Test
+    fun `paintSpanStyle uses density-scaled shadow`() {
+        val shadow = com.flxrs.dankchat.data.twitch.paint.SevenTVPaintShadow(
+            colorHex = "#BBFF00FF",
+            offsetX = 0f,
+            offsetY = 0f,
+            blur = 4f,
+        )
+        val paint = PaintUi(shadows = listOf(shadow))
+        val density = androidx.compose.ui.unit.Density(3f)
+        val style = paintSpanStyle(paint, baseColor = Color.White, density = density)
+
+        assertNotNull(style.shadow)
+        assertEquals(30f, style.shadow?.blurRadius)
+    }
 }
+
